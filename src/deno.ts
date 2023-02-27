@@ -21,6 +21,7 @@ export interface InfoOutput {
   roots: string[];
   modules: ModuleEntry[];
   redirects: Record<string, string>;
+  npmPackages: Record<string, NpmPackageEntry>;
 }
 
 export interface ModuleEntry {
@@ -32,6 +33,12 @@ export interface ModuleEntry {
   emit?: string;
   map?: string;
   error?: string;
+}
+
+export interface NpmPackageEntry {
+  name: string;
+  version: string;
+  dependencies: string[];
 }
 
 interface DenoInfoOptions {
@@ -73,6 +80,57 @@ export async function info(
     }
     const txt = new TextDecoder().decode(raw);
     return JSON.parse(txt);
+  } finally {
+    try {
+      proc?.stdout.close();
+    } catch (err) {
+      if (err instanceof Deno.errors.BadResource) {
+        // ignore the error
+      } else {
+        // deno-lint-ignore no-unsafe-finally
+        throw err;
+      }
+    }
+    proc?.close();
+  }
+}
+
+export interface GlobalInfoOutput {
+  denoDir: string;
+  modulesCache: string;
+  npmCache: string;
+  typescriptCache: string;
+  registryCache: string;
+  originStorage: string;
+}
+
+let globalInfoCache: GlobalInfoOutput | null = null;
+
+export async function globalInfo(): Promise<GlobalInfoOutput> {
+  if (globalInfoCache) {
+    return globalInfoCache;
+  }
+
+  if (!tempDir) {
+    tempDir = Deno.makeTempDirSync();
+  }
+
+  let proc;
+
+  try {
+    proc = Deno.run({
+      cmd: [Deno.execPath(), "info", "--json"],
+      stdout: "piped",
+      cwd: tempDir,
+    });
+    const raw = await proc.output();
+    const status = await proc.status();
+    if (!status.success) {
+      throw new Error(`Failed to call 'deno info' on '${specifier.href}'`);
+    }
+    const txt = new TextDecoder().decode(raw);
+    globalInfoCache = JSON.parse(txt);
+    return globalInfoCache;
   } finally {
     try {
       proc?.stdout.close();

@@ -8,7 +8,7 @@ import {
 } from "./deps.ts";
 import { load as nativeLoad } from "./src/native_loader.ts";
 import { load as portableLoad } from "./src/portable_loader.ts";
-import { ModuleEntry } from "./src/deno.ts";
+import { InfoCache } from "./src/cache.ts";
 
 export interface DenoPluginOptions {
   /**
@@ -41,7 +41,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
   return {
     name: "deno",
     setup(build) {
-      const infoCache = new Map<string, ModuleEntry>();
+      const infoCache = new InfoCache();
       let importMap: ImportMap | null = null;
 
       build.onStart(async function onStart() {
@@ -103,6 +103,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "npm" }, onLoad);
     },
   };
 }
